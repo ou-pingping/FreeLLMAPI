@@ -111,6 +111,14 @@ export default function AnalyticsPage() {
       ? `The number shown projects your pace from the last ${spanLabel} of data to a full 30 days.`
       : `The number shown is your real 30-day total.`)
 
+  // Pinned = the client named a specific model instead of auto-routing.
+  // Honored = that model actually served it (the rest failed over).
+  const pinned = summary?.pinnedRequests ?? 0
+  const pinHonored = summary?.pinHonoredRequests ?? 0
+  const requestsHint = pinned > 0
+    ? `${pinned} of these requests pinned a specific model by name. ${pinHonored} were served by the pinned model; ${pinned - pinHonored} failed over to a different one. The rest were auto-routed.`
+    : 'All requests in this period were auto-routed; no client pinned a specific model by name.'
+
   return (
     <div>
       <PageHeader
@@ -135,7 +143,7 @@ export default function AnalyticsPage() {
       <div className="space-y-6">
         {/* Summary stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <Stat label="Requests" value={summary?.totalRequests ?? 0} />
+          <Stat label="Requests" value={summary?.totalRequests ?? 0} hint={requestsHint} />
           <Stat label="Success rate" value={`${summary?.successRate ?? 0}%`} />
           <Stat label="Input tokens" value={formatTokens(summary?.totalInputTokens)} />
           <Stat label="Output tokens" value={formatTokens(summary?.totalOutputTokens)} />
@@ -212,6 +220,7 @@ export default function AnalyticsPage() {
                         <TableHead className="pl-4">Model</TableHead>
                         <TableHead>Provider</TableHead>
                         <TableHead className="text-right">Requests</TableHead>
+                        <TableHead className="text-right">Pinned</TableHead>
                         <TableHead className="text-right">Success</TableHead>
                         <TableHead className="text-right">Latency</TableHead>
                         <TableHead className="text-right">In tokens</TableHead>
@@ -225,6 +234,7 @@ export default function AnalyticsPage() {
                           <TableCell className="pl-4 text-sm font-medium">{m.displayName}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{m.platform}</TableCell>
                           <TableCell className="text-right tabular-nums">{m.requests}</TableCell>
+                          <TableCell className="text-right tabular-nums">{m.pinnedRequests > 0 ? m.pinnedRequests : '—'}</TableCell>
                           <TableCell className="text-right tabular-nums">{m.successRate}%</TableCell>
                           <TableCell className="text-right tabular-nums">{m.avgLatencyMs} ms</TableCell>
                           <TableCell className="text-right tabular-nums">{formatTokens(m.totalInputTokens)}</TableCell>

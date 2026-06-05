@@ -175,6 +175,18 @@ function createTables(db: Database.Database) {
   ensureApiKeysBaseUrlColumn(db);
   ensureModelsKeyIdColumn(db);
   ensureRequestTtfbColumn(db);
+  ensureRequestRequestedModelColumn(db);
+}
+
+// `requested_model` is the model id the CLIENT pinned in the request body.
+// NULL when the request was auto-routed ('auto' or omitted model field).
+// requested_model = model_id means the pin was honored; a different model_id
+// means rate limits or failures forced a failover to another model.
+function ensureRequestRequestedModelColumn(db: Database.Database) {
+  const columns = db.prepare('PRAGMA table_info(requests)').all() as { name: string }[];
+  if (!columns.some(col => col.name === 'requested_model')) {
+    db.prepare('ALTER TABLE requests ADD COLUMN requested_model TEXT').run();
+  }
 }
 
 // `ttfb_ms` is the time-to-first-byte for streaming responses (ms from dispatch

@@ -43,6 +43,8 @@ analyticsRouter.get('/summary', (req: Request, res: Response) => {
       SUM(r.output_tokens) as total_output_tokens,
       AVG(r.latency_ms) as avg_latency_ms,
       MIN(r.created_at) as first_request_at,
+      SUM(CASE WHEN r.requested_model IS NOT NULL THEN 1 ELSE 0 END) as pinned_count,
+      SUM(CASE WHEN r.requested_model = r.model_id THEN 1 ELSE 0 END) as pin_honored_count,
       SUM(CASE WHEN r.status = 'success' THEN
         r.input_tokens  * COALESCE(m.paid_input_per_m,  ?) / 1000000.0 +
         r.output_tokens * COALESCE(m.paid_output_per_m, ?) / 1000000.0
@@ -62,6 +64,11 @@ analyticsRouter.get('/summary', (req: Request, res: Response) => {
     totalOutputTokens: stats.total_output_tokens ?? 0,
     avgLatencyMs: Math.round(stats.avg_latency_ms ?? 0),
     estimatedCostSavings: Math.round((stats.est_savings ?? 0) * 100) / 100,
+    // Pinned = requests where the client named a specific model (not 'auto').
+    // Honored = the pinned model actually served it; the difference is
+    // failovers that overrode the pin.
+    pinnedRequests: stats.pinned_count ?? 0,
+    pinHonoredRequests: stats.pin_honored_count ?? 0,
     // Lets the client project savings from the ACTUAL data span (a 2-day-old
     // install shouldn't extrapolate as if the whole range had traffic).
     firstRequestAt: stats.first_request_at ?? null,
@@ -84,6 +91,7 @@ analyticsRouter.get('/by-model', (req: Request, res: Response) => {
       AVG(r.latency_ms) as avg_latency_ms,
       SUM(r.input_tokens) as total_input_tokens,
       SUM(r.output_tokens) as total_output_tokens,
+      SUM(CASE WHEN r.requested_model = r.model_id THEN 1 ELSE 0 END) as pinned_requests,
       SUM(CASE WHEN r.status = 'success' THEN
         r.input_tokens  * COALESCE(m.paid_input_per_m,  ?) / 1000000.0 +
         r.output_tokens * COALESCE(m.paid_output_per_m, ?) / 1000000.0
@@ -104,6 +112,8 @@ analyticsRouter.get('/by-model', (req: Request, res: Response) => {
     avgLatencyMs: Math.round(r.avg_latency_ms),
     totalInputTokens: r.total_input_tokens ?? 0,
     totalOutputTokens: r.total_output_tokens ?? 0,
+    // Requests this model served because the client pinned it by name.
+    pinnedRequests: r.pinned_requests ?? 0,
     estimatedCost: Math.round((r.est_cost ?? 0) * 100) / 100,
   })));
 });
